@@ -5,14 +5,30 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"simpleapi/internal/api/middlewares"
+	mw "simpleapi/internal/api/middlewares"
 )
+
+type middlewareFunc func(http.Handler) http.Handler
+
+var middlewares = []middlewareFunc{
+	mw.Cors,
+	mw.SecurityHeaders,
+	mw.ResponseTimeMiddleware,
+}
+
+func applyMiddleWares(mux http.Handler) http.Handler {
+	var middleWare http.Handler = mux
+	for _, mwFunc := range middlewares {
+		middleWare = mwFunc(middleWare)
+	}
+	return middleWare
+}
 
 func main() {
 	port := ":3000"
 
-	cert := "cert.pem"
-	key := "key.pem"
+	cert := "cert/cert.pem"
+	key := "cert/key.pem"
 
 	mux := http.NewServeMux()
 
@@ -38,8 +54,9 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 	server := &http.Server{
-		Addr:      port,
-		Handler:   middlewares.SecurityHeaders(mux),
+		Addr:    port,
+		Handler: applyMiddleWares(mux),
+		// Handler:   middlewares.Cors(mux),
 		TLSConfig: tlsConfig,
 	}
 
