@@ -6,15 +6,21 @@ import (
 	"log"
 	"net/http"
 	mw "simpleapi/internal/api/middlewares"
+	"time"
 )
 
 type middlewareFunc func(http.Handler) http.Handler
+
+var rl = mw.NewRateLimiter(5, time.Minute)
 
 var middlewares = []middlewareFunc{
 	mw.Cors,
 	mw.SecurityHeaders,
 	mw.ResponseTimeMiddleware,
 	mw.Compression,
+
+	//Needs to be at the end
+	rl.Middleware,
 }
 
 func applyMiddleWares(mux http.Handler) http.Handler {
