@@ -14,6 +14,7 @@ var middlewares = []middlewareFunc{
 	mw.Cors,
 	mw.SecurityHeaders,
 	mw.ResponseTimeMiddleware,
+	mw.Compression,
 }
 
 func applyMiddleWares(mux http.Handler) http.Handler {
