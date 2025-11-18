@@ -13,6 +13,15 @@ type middlewareFunc func(http.Handler) http.Handler
 
 var rl = mw.NewRateLimiter(5, time.Minute)
 
+var hppOptions = mw.HPPOptions{
+	CheckQuery:              true,
+	CheckBody:               true,
+	CheckBodyForContentType: "application/x-ww-form-urlencoded",
+	Whitelist:               []string{"sortBy", "sortOrder", "name", "age", "class"},
+}
+
+var hppMiddleware = mw.HppMiddleware(hppOptions)
+
 var middlewares = []middlewareFunc{
 	mw.Cors,
 	mw.SecurityHeaders,
@@ -21,6 +30,7 @@ var middlewares = []middlewareFunc{
 
 	//Needs to be at the end
 	rl.Middleware,
+	hppMiddleware,
 }
 
 func applyMiddleWares(mux http.Handler) http.Handler {
