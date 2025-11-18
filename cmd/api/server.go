@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"simpleapi/internal/api/handlers"
 	mw "simpleapi/internal/api/middlewares"
+	"simpleapi/pkg/utils"
 	"time"
 )
-
-type middlewareFunc func(http.Handler) http.Handler
 
 var rl = mw.NewRateLimiter(5, time.Minute)
 
@@ -22,23 +22,15 @@ var hppOptions = mw.HPPOptions{
 
 var hppMiddleware = mw.HppMiddleware(hppOptions)
 
-var middlewares = []middlewareFunc{
-	mw.Cors,
+var middlewares = []utils.MiddlewareFunc{
+	hppMiddleware,
+	mw.Compression,
 	mw.SecurityHeaders,
 	mw.ResponseTimeMiddleware,
-	mw.Compression,
 
-	//Needs to be at the end
 	rl.Middleware,
-	hppMiddleware,
-}
-
-func applyMiddleWares(mux http.Handler) http.Handler {
-	var middleWare http.Handler = mux
-	for _, mwFunc := range middlewares {
-		middleWare = mwFunc(middleWare)
-	}
-	return middleWare
+	//Needs to be at the end
+	mw.Cors,
 }
 
 func main() {
@@ -49,30 +41,21 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// fmt.Fprintf(w, "Hello root Route")
-		w.Write([]byte("Hello root route"))
-	})
-	mux.HandleFunc("/teachers", func(w http.ResponseWriter, r *http.Request) {
-		// fmt.Fprintf(w, "Hello root Route")
-		w.Write([]byte("Hello Teachers route"))
-	})
-	mux.HandleFunc("/students", func(w http.ResponseWriter, r *http.Request) {
-		// fmt.Fprintf(w, "Hello root Route")
-		w.Write([]byte("Hello students route"))
-	})
+	mux.HandleFunc("/", handlers.RootHandler)
+	mux.HandleFunc("/teachers/", handlers.TeachersHandler)
+	mux.HandleFunc("/students/", handlers.StudentHandler)
 
-	mux.HandleFunc("/execs", func(w http.ResponseWriter, r *http.Request) {
-		// fmt.Fprintf(w, "Hello root Route")
-		w.Write([]byte("Hello Execs route"))
-	})
+	mux.HandleFunc("/execs/", handlers.ExecsHandler)
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
+
+	// secureMux := utils.ApplyMiddleWares(mux, middlewares)
+	secureMux := mw.SecurityHeaders(mux)
 	server := &http.Server{
 		Addr:    port,
-		Handler: applyMiddleWares(mux),
+		Handler: secureMux,
 		// Handler:   middlewares.Cors(mux),
 		TLSConfig: tlsConfig,
 	}
