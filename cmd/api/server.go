@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"simpleapi/internal/api/handlers"
 	mw "simpleapi/internal/api/middlewares"
+	"simpleapi/internal/api/router"
 	"simpleapi/pkg/utils"
 	"time"
 )
@@ -39,20 +39,13 @@ func main() {
 	cert := "cert/cert.pem"
 	key := "cert/key.pem"
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", handlers.RootHandler)
-	mux.HandleFunc("/teachers/", handlers.TeachersHandler)
-	mux.HandleFunc("/students/", handlers.StudentHandler)
-
-	mux.HandleFunc("/execs/", handlers.ExecsHandler)
-
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
 
 	// secureMux := utils.ApplyMiddleWares(mux, middlewares)
-	secureMux := mw.SecurityHeaders(mux)
+	router := router.Router()
+	secureMux := mw.SecurityHeaders(router)
 	server := &http.Server{
 		Addr:    port,
 		Handler: secureMux,
