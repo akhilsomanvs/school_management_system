@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	mw "simpleapi/internal/api/middlewares"
 	"simpleapi/internal/api/router"
+	"simpleapi/internal/repository/sqlconnect"
 	"simpleapi/pkg/utils"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 var rl = mw.NewRateLimiter(5, time.Minute)
@@ -34,7 +38,17 @@ var middlewares = []utils.MiddlewareFunc{
 }
 
 func main() {
-	port := ":3000"
+	err := godotenv.Load()
+	if err != nil {
+		return
+	}
+
+	_, err = sqlconnect.ConnectDb()
+	if err != nil {
+		fmt.Println("Error connecting to DB", err)
+		return
+	}
+	port := os.Getenv("API_PORT")
 
 	cert := "cert/cert.pem"
 	key := "cert/key.pem"
@@ -54,7 +68,7 @@ func main() {
 	}
 
 	fmt.Println("Server is running on port:", port)
-	err := server.ListenAndServeTLS(cert, key)
+	err = server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln("Error starting the server", err)
 	}

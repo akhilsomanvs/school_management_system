@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"simpleapi/internal/models"
+	"simpleapi/internal/repository/sqlconnect"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,10 +16,13 @@ var mutex = &sync.Mutex{}
 var nextID = 1
 
 func TeachersHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("METHOD :::: ", r.Method)
 	switch r.Method {
 	case http.MethodGet:
+		// w.Write([]byte("Hello GET method on Teacher handler"))
 		getTeachersHandler(w, r)
 	case http.MethodPost:
+		// w.Write([]byte("Hello POST method on Teacher handler"))
 		addTeacherHandler(w, r)
 	case http.MethodPut:
 		w.Write([]byte("Hello PUT method on Teacher handler"))
@@ -96,22 +100,46 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
 
 	var newTeachers []models.Teacher
-	err := json.NewDecoder(r.Body).Decode(&newTeachers)
+
+	err = json.NewDecoder(r.Body).Decode(&newTeachers)
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
 		return
 	}
 
+	stmt, err := db.Prepare("INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)")
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Error in preparing SQL QUery", http.StatusInternalServerError)
+		return
+	}
+	defer stmt.Close()
+
 	addedTeachers := make([]models.Teacher, len(newTeachers))
 	for i, newTeacher := range newTeachers {
-		newTeacher.ID = nextID
-		teachers[nextID] = newTeacher
+		res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "Error inserting data into database", http.StatusInternalServerError)
+			return
+		}
+		lastID, err := res.LastInsertId()
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "Error getting last inserted ID", http.StatusInternalServerError)
+			return
+		}
+		newTeacher.ID = int(lastID)
 		addedTeachers[i] = newTeacher
-		nextID++
 	}
 
 	w.Header().Set("Content-Type", "application/json")
