@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"simpleapi/internal/models"
 	"simpleapi/internal/repository/sqlconnect"
 	"strconv"
@@ -324,19 +325,23 @@ func patchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Apply updates
+	//Apply udpates using Reflect
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	teacherType := teacherVal.Type()
+
 	for k, v := range updates {
-		switch k {
-		case "first_name":
-			existingTeacher.FirstName = v.(string)
-		case "last_name":
-			existingTeacher.LastName = v.(string)
-		case "email":
-			existingTeacher.Email = v.(string)
-		case "class":
-			existingTeacher.Class = v.(string)
-		case "subject":
-			existingTeacher.Subject = v.(string)
+		for i := 0; i < teacherVal.NumField(); i++ {
+			field := teacherType.Field(i)
+			fieldTag := field.Tag.Get("json")
+			if strings.Contains(fieldTag, ",") {
+				fieldTag = strings.Split(fieldTag, ",")[0]
+			}
+			if fieldTag == k {
+				if teacherVal.Field(i).CanSet() {
+					fieldVal := teacherVal.Field(i)
+					fieldVal.Set(reflect.ValueOf(v).Convert(fieldVal.Type()))
+				}
+			}
 		}
 	}
 
