@@ -40,6 +40,7 @@ var middlewares = []utils.MiddlewareFunc{
 func main() {
 	err := godotenv.Load()
 	if err != nil {
+		log.Println(".env not found, using system env")
 		return
 	}
 

@@ -18,19 +18,19 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		// w.Write([]byte("Hello GET method on Teacher handler"))
-		getTeachersHandler(w, r)
+		GetTeachersHandler(w, r)
 	case http.MethodPost:
 		// w.Write([]byte("Hello POST method on Teacher handler"))
-		addTeacherHandler(w, r)
+		AddTeacherHandler(w, r)
 	case http.MethodPut:
 		// w.Write([]byte("Hello PUT method on Teacher handler"))
-		updateTeacherHandler(w, r)
+		UpdateTeacherHandler(w, r)
 	case http.MethodPatch:
 		//w.Write([]byte("Hello Patch method on Teacher handler"))
-		patchTeachersHandler(w, r)
+		PatchTeachersHandler(w, r)
 	case http.MethodDelete:
 		// w.Write([]byte("Hello DELETE method on Teacher handler"))
-		deleteTeachersHandler(w, r)
+		DeleteTeachersHandler(w, r)
 	}
 }
 
@@ -49,10 +49,7 @@ func isValidSortField(field string) bool {
 	return validFields[field]
 }
 
-func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
-
-	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
-	idStr := strings.TrimSuffix(path, "/")
+func GetTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
@@ -61,66 +58,76 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	if idStr != "" {
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
+	var args []any
 
+	query, args = addFilters(r, query)
+
+	query = addSorting(r, query)
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Database query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	teacherList := make([]models.Teacher, 0)
+
+	for rows.Next() {
 		var teacher models.Teacher
-		row := db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id)
-		err = row.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
-		if err == sql.ErrNoRows {
-			http.Error(w, "Teacher not found", http.StatusNotFound)
-			return
-		} else if err != nil {
+		err = rows.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+		if err != nil {
 			http.Error(w, "Error fetching data", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(teacher)
-
-	} else {
-		query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
-		var args []any
-
-		query, args = addFilters(r, query)
-
-		query = addSorting(r, query)
-
-		rows, err := db.Query(query, args...)
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
-
-		teacherList := make([]models.Teacher, 0)
-
-		for rows.Next() {
-			var teacher models.Teacher
-			err = rows.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
-			if err != nil {
-				http.Error(w, "Error fetching data", http.StatusInternalServerError)
-				return
-			}
-			teacherList = append(teacherList, teacher)
-		}
-		response := struct {
-			Status string           `json:"status"`
-			Count  int              `json:"count"`
-			Data   []models.Teacher `json:"data"`
-		}{
-			Status: "success",
-			Count:  len(teacherList),
-			Data:   teacherList,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		teacherList = append(teacherList, teacher)
 	}
+	response := struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Data   []models.Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(teacherList),
+		Data:   teacherList,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+
+}
+
+func GetTeacherHandler(w http.ResponseWriter, r *http.Request) {
+
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	idStr := r.PathValue("id ")
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var teacher models.Teacher
+	row := db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id)
+	err = row.Scan(&teacher.ID, &teacher.FirstName, &teacher.LastName, &teacher.Email, &teacher.Class, &teacher.Subject)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Teacher not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Error fetching data", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(teacher)
 
 }
 
@@ -167,7 +174,7 @@ func addFilters(r *http.Request, query string) (string, []interface{}) {
 	return query, args
 }
 
-func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	db, err := sqlconnect.ConnectDb()
 	if err != nil {
 		http.Error(w, "Error connecting to database", http.StatusInternalServerError)
@@ -227,7 +234,7 @@ func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT /teacher/{id}
-func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -282,7 +289,7 @@ func updateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PATCH /teachers/{id}
-func patchTeachersHandler(w http.ResponseWriter, r *http.Request) {
+func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -363,7 +370,7 @@ func patchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // DELETE TEacher
-func deleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/teachers/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
