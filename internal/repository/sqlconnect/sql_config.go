@@ -19,7 +19,7 @@ func ConnectDb() (*sql.DB, error) {
 	params := "charset=utf8mb4&parseTime=True&loc=Local"
 
 	encodedUserName := url.QueryEscape(username)
-	encodedPassword := url.QueryEscape(password)
+	encodedPassword := password //url.QueryEscape(password)
 
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s", encodedUserName, encodedPassword, host, dbPort, dbName, params)
 	fmt.Println("CONNECTION STRING :::: ", connectionString)
