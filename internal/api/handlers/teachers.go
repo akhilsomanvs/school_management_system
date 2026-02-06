@@ -30,7 +30,7 @@ func TeachersHandler(w http.ResponseWriter, r *http.Request) {
 		PatchTeachersHandler(w, r)
 	case http.MethodDelete:
 		// w.Write([]byte("Hello DELETE method on Teacher handler"))
-		DeleteOneTeachersHandler(w, r)
+		DeleteOneTeacherHandler(w, r)
 	}
 }
 
@@ -393,7 +393,7 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func PatchOneTeachersHandler(w http.ResponseWriter, r *http.Request) {
+func PatchOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -474,7 +474,7 @@ func PatchOneTeachersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // DELETE TEacher
-func DeleteOneTeachersHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
