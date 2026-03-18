@@ -577,12 +577,14 @@ func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error retrieving delete result", http.StatusInternalServerError)
 			return
 		}
-		if rowsAffected == 0 {
-			log.Printf("Teacher with ID %d not found", id)
-			continue
-		}
 		if rowsAffected > 0 {
 			deletedIds = append(deletedIds, id)
+		}
+		if rowsAffected < 1 {
+			tx.Rollback()
+			log.Printf("Teacher with ID %d not found", id)
+			http.Error(w, fmt.Sprintf("ID %d doesn not exist", id), http.StatusInternalServerError)
+			continue
 		}
 	}
 	err = tx.Commit()
