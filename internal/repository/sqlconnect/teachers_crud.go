@@ -330,6 +330,72 @@ func DeleteOneTeacher(id int) error {
 	return nil
 }
 
+func DeleteTeachers(ids []int) ([]int, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		log.Println(err)
+		// http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
+		return nil, err
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println(err)
+		// http.Error(w, "Error beginning transaction", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	stmt, err := tx.Prepare("DELETE FROM teachers WHERE id = ?")
+	if err != nil {
+		log.Println(err)
+		tx.Rollback()
+		// http.Error(w, "Error preparing delete statement", http.StatusInternalServerError)
+		return nil, err
+	}
+	defer stmt.Close()
+
+	deletedIds := []int{}
+
+	for _, id := range ids {
+		result, err := stmt.Exec(id)
+		if err != nil {
+			log.Println(err)
+			tx.Rollback()
+			// http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
+			return nil, err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			log.Println(err)
+			tx.Rollback()
+			// http.Error(w, "Error retrieving delete result", http.StatusInternalServerError)
+			return nil, err
+		}
+		if rowsAffected > 0 {
+			deletedIds = append(deletedIds, id)
+		}
+		if rowsAffected < 1 {
+			tx.Rollback()
+			log.Printf("Teacher with ID %d not found", id)
+			// http.Error(w, fmt.Sprintf("ID %d doesn not exist", id), http.StatusInternalServerError)
+			continue
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Println(err)
+		// http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	if len(deletedIds) < 1 {
+		// http.Error(w, "IDs do not exist", http.StatusNotFound)
+		return nil, err
+	}
+	return deletedIds, nil
+}
+
 //------------------------------
 
 func addSorting(r *http.Request, query string) string {

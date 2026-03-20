@@ -210,74 +210,17 @@ func DeleteOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
-	db, err := sqlconnect.ConnectDb()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
 	var ids []int
-	err = json.NewDecoder(r.Body).Decode(&ids)
+	err := json.NewDecoder(r.Body).Decode(&ids)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Invalid Request Payload", http.StatusBadRequest)
 		return
 	}
 
-	tx, err := db.Begin()
+	deletedIds, err := sqlconnect.DeleteTeachers(ids)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Error beginning transaction", http.StatusInternalServerError)
-		return
-	}
-
-	stmt, err := tx.Prepare("DELETE FROM teachers WHERE id = ?")
-	if err != nil {
-		log.Println(err)
-		tx.Rollback()
-		http.Error(w, "Error preparing delete statement", http.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	deletedIds := []int{}
-
-	for _, id := range ids {
-		result, err := stmt.Exec(id)
-		if err != nil {
-			log.Println(err)
-			tx.Rollback()
-			http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
-			return
-		}
-		rowsAffected, err := result.RowsAffected()
-		if err != nil {
-			log.Println(err)
-			tx.Rollback()
-			http.Error(w, "Error retrieving delete result", http.StatusInternalServerError)
-			return
-		}
-		if rowsAffected > 0 {
-			deletedIds = append(deletedIds, id)
-		}
-		if rowsAffected < 1 {
-			tx.Rollback()
-			log.Printf("Teacher with ID %d not found", id)
-			http.Error(w, fmt.Sprintf("ID %d doesn not exist", id), http.StatusInternalServerError)
-			continue
-		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Error committing transaction", http.StatusInternalServerError)
-		return
-	}
-
-	if len(deletedIds) < 1 {
-		http.Error(w, "IDs do not exist", http.StatusNotFound)
 		return
 	}
 
